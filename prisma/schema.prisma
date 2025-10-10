@@ -1,0 +1,181 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider  = "postgresql"
+  url       = env("DATABASE_URL")
+  directUrl = env("DIRECT_URL")
+}
+
+model User {
+  id               String                  @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  email            String                  @unique @db.VarChar(255)
+  passwordHash     String                  @map("password_hash") @db.VarChar(255)
+  fullName         String                  @map("full_name") @db.VarChar(255)
+  avatarUrl        String?                 @map("avatar_url") @db.VarChar(500)
+  role             String?                 @default("user") @db.VarChar(50)
+  isActive         Boolean?                @default(true) @map("is_active")
+  createdAt        DateTime?               @default(now()) @map("created_at") @db.Timestamp(6)
+  updatedAt        DateTime?               @default(now()) @updatedAt @map("updated_at") @db.Timestamp(6)
+  activities       Activity[]
+  issueComments    IssueComment[]
+  assignedIssues   Issue[]                 @relation("IssueAssignee")
+  reportedIssues   Issue[]                 @relation("IssueReporter")
+  projectMembers   ProjectMember[]
+  leadProjects     Project[]               @relation("ProjectLead")
+  userProjectPrefs UserProjectPreference[]
+
+  @@map("users")
+}
+
+model Project {
+  id               String                  @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  name             String                  @db.VarChar(255)
+  key              String                  @unique @db.VarChar(10)
+  description      String?
+  category         String                  @db.VarChar(50)
+  template         String                  @db.VarChar(20)
+  leadId           String?                 @map("lead_id") @db.Uuid
+  avatarColor      String?                 @default("bg-blue-500") @map("avatar_color") @db.VarChar(20)
+  isStarred        Boolean?                @default(false) @map("is_starred")
+  isArchived       Boolean?                @default(false) @map("is_archived")
+  createdAt        DateTime?               @default(now()) @map("created_at") @db.Timestamp(6)
+  updatedAt        DateTime?               @default(now()) @updatedAt @map("updated_at") @db.Timestamp(6)
+  activities       Activity[]
+  issueLabels      IssueLabel[]
+  issueStatuses    IssueStatus[]
+  issues           Issue[]
+  members          ProjectMember[]
+  lead             User?                   @relation("ProjectLead", fields: [leadId], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  userProjectPrefs UserProjectPreference[]
+
+  @@index([leadId], map: "idx_projects_lead_id")
+  @@map("projects")
+}
+
+model ProjectMember {
+  id        String    @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  projectId String?   @map("project_id") @db.Uuid
+  userId    String?   @map("user_id") @db.Uuid
+  role      String?   @default("member") @db.VarChar(50)
+  joinedAt  DateTime? @default(now()) @map("joined_at") @db.Timestamp(6)
+  project   Project?  @relation(fields: [projectId], references: [id], onDelete: Cascade, onUpdate: NoAction)
+  user      User?     @relation(fields: [userId], references: [id], onDelete: Cascade, onUpdate: NoAction)
+
+  @@unique([projectId, userId])
+  @@index([projectId], map: "idx_project_members_project_id")
+  @@index([userId], map: "idx_project_members_user_id")
+  @@map("project_members")
+}
+
+model IssueStatus {
+  id        String    @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  projectId String?   @map("project_id") @db.Uuid
+  name      String    @db.VarChar(100)
+  position  Int
+  color     String?   @default("bg-gray-500") @db.VarChar(20)
+  createdAt DateTime? @default(now()) @map("created_at") @db.Timestamp(6)
+  project   Project?  @relation(fields: [projectId], references: [id], onDelete: Cascade, onUpdate: NoAction)
+  issues    Issue[]
+
+  @@map("issue_statuses")
+}
+
+model Issue {
+  id             String               @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  projectId      String?              @map("project_id") @db.Uuid
+  title          String               @db.VarChar(500)
+  description    String?
+  issueType      String?              @default("task") @map("issue_type") @db.VarChar(50)
+  priority       String?              @default("medium") @db.VarChar(20)
+  statusId       String?              @map("status_id") @db.Uuid
+  assigneeId     String?              @map("assignee_id") @db.Uuid
+  reporterId     String               @map("reporter_id") @db.Uuid
+  storyPoints    Int?                 @map("story_points")
+  position       Int?
+  dueDate        DateTime?            @map("due_date") @db.Date
+  createdAt      DateTime?            @default(now()) @map("created_at") @db.Timestamp(6)
+  updatedAt      DateTime?            @default(now()) @updatedAt @map("updated_at") @db.Timestamp(6)
+  activities     Activity[]
+  comments       IssueComment[]
+  labelRelations IssueLabelRelation[]
+  assignee       User?                @relation("IssueAssignee", fields: [assigneeId], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  project        Project?             @relation(fields: [projectId], references: [id], onDelete: Cascade, onUpdate: NoAction)
+  reporter       User                 @relation("IssueReporter", fields: [reporterId], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  status         IssueStatus?         @relation(fields: [statusId], references: [id], onDelete: NoAction, onUpdate: NoAction)
+
+  @@index([assigneeId], map: "idx_issues_assignee_id")
+  @@index([statusId, position], map: "idx_issues_position")
+  @@index([projectId], map: "idx_issues_project_id")
+  @@index([statusId], map: "idx_issues_status_id")
+  @@map("issues")
+}
+
+model IssueLabel {
+  id             String               @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  projectId      String?              @map("project_id") @db.Uuid
+  name           String               @db.VarChar(100)
+  color          String?              @default("bg-blue-500") @db.VarChar(20)
+  createdAt      DateTime?            @default(now()) @map("created_at") @db.Timestamp(6)
+  labelRelations IssueLabelRelation[]
+  project        Project?             @relation(fields: [projectId], references: [id], onDelete: Cascade, onUpdate: NoAction)
+
+  @@unique([projectId, name])
+  @@map("issue_labels")
+}
+
+model IssueLabelRelation {
+  id      String      @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  issueId String?     @map("issue_id") @db.Uuid
+  labelId String?     @map("label_id") @db.Uuid
+  issue   Issue?      @relation(fields: [issueId], references: [id], onDelete: Cascade, onUpdate: NoAction)
+  label   IssueLabel? @relation(fields: [labelId], references: [id], onDelete: Cascade, onUpdate: NoAction)
+
+  @@unique([issueId, labelId])
+  @@map("issue_label_relations")
+}
+
+model IssueComment {
+  id        String    @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  issueId   String?   @map("issue_id") @db.Uuid
+  authorId  String    @map("author_id") @db.Uuid
+  content   String
+  createdAt DateTime? @default(now()) @map("created_at") @db.Timestamp(6)
+  updatedAt DateTime? @default(now()) @updatedAt @map("updated_at") @db.Timestamp(6)
+  author    User      @relation(fields: [authorId], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  issue     Issue?    @relation(fields: [issueId], references: [id], onDelete: Cascade, onUpdate: NoAction)
+
+  @@map("issue_comments")
+}
+
+model Activity {
+  id        String    @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  projectId String?   @map("project_id") @db.Uuid
+  issueId   String?   @map("issue_id") @db.Uuid
+  userId    String    @map("user_id") @db.Uuid
+  action    String    @db.VarChar(100)
+  details   Json?
+  createdAt DateTime? @default(now()) @map("created_at") @db.Timestamp(6)
+  issue     Issue?    @relation(fields: [issueId], references: [id], onDelete: Cascade, onUpdate: NoAction)
+  project   Project?  @relation(fields: [projectId], references: [id], onDelete: Cascade, onUpdate: NoAction)
+  user      User      @relation(fields: [userId], references: [id], onDelete: NoAction, onUpdate: NoAction)
+
+  @@index([createdAt], map: "idx_activities_created_at")
+  @@index([projectId], map: "idx_activities_project_id")
+  @@map("activities")
+}
+
+model UserProjectPreference {
+  id          String    @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  userId      String?   @map("user_id") @db.Uuid
+  projectId   String?   @map("project_id") @db.Uuid
+  isStarred   Boolean?  @default(false) @map("is_starred")
+  lastVisited DateTime? @map("last_visited") @db.Timestamp(6)
+  preferences Json?
+  project     Project?  @relation(fields: [projectId], references: [id], onDelete: Cascade, onUpdate: NoAction)
+  user        User?     @relation(fields: [userId], references: [id], onDelete: Cascade, onUpdate: NoAction)
+
+  @@unique([userId, projectId])
+  @@map("user_project_preferences")
+}

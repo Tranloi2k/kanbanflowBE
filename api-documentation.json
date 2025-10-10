@@ -1,0 +1,904 @@
+{
+   "apiInfo": {
+      "name": "KanbanFlow API",
+      "version": "1.0.0",
+      "description": "RESTful API for KanbanFlow project management system",
+      "baseUrl": "http://localhost:3000/api/v1",
+      "docsUrl": "http://localhost:3000/api-docs",
+      "contentType": "application/json",
+      "authentication": {
+         "type": "Bearer Token (JWT)",
+         "header": "Authorization: Bearer <token>",
+         "tokenLocation": "response.data.token from login/register"
+      }
+   },
+   "endpoints": {
+      "users": {
+         "baseRoute": "/users",
+         "description": "User management and authentication",
+         "endpoints": [
+            {
+               "method": "POST",
+               "path": "/users/register",
+               "description": "Register a new user",
+               "authentication": "none",
+               "requestBody": {
+                  "required": [
+                     "email",
+                     "password",
+                     "fullName"
+                  ],
+                  "schema": {
+                     "email": {
+                        "type": "string",
+                        "format": "email",
+                        "example": "user@example.com",
+                        "maxLength": 255
+                     },
+                     "password": {
+                        "type": "string",
+                        "minLength": 6,
+                        "example": "password123"
+                     },
+                     "fullName": {
+                        "type": "string",
+                        "example": "John Doe",
+                        "maxLength": 255
+                     }
+                  }
+               },
+               "responses": {
+                  "201": {
+                     "description": "User registered successfully",
+                     "data": {
+                        "user": {
+                           "id": "uuid",
+                           "email": "string",
+                           "fullName": "string",
+                           "role": "string",
+                           "isActive": "boolean"
+                        },
+                        "token": "string (JWT)"
+                     }
+                  },
+                  "400": "Bad request - User already exists or invalid data"
+               }
+            },
+            {
+               "method": "POST",
+               "path": "/users/login",
+               "description": "Login user",
+               "authentication": "none",
+               "requestBody": {
+                  "required": [
+                     "email",
+                     "password"
+                  ],
+                  "schema": {
+                     "email": {
+                        "type": "string",
+                        "format": "email",
+                        "example": "user@example.com"
+                     },
+                     "password": {
+                        "type": "string",
+                        "example": "password123"
+                     }
+                  }
+               },
+               "responses": {
+                  "200": {
+                     "description": "Login successful",
+                     "data": {
+                        "user": "User object",
+                        "token": "string (JWT)"
+                     }
+                  },
+                  "401": "Invalid credentials"
+               }
+            },
+            {
+               "method": "GET",
+               "path": "/users/profile",
+               "description": "Get current user profile",
+               "authentication": "required",
+               "responses": {
+                  "200": {
+                     "description": "Profile retrieved successfully",
+                     "data": "User object"
+                  },
+                  "401": "Unauthorized"
+               }
+            },
+            {
+               "method": "GET",
+               "path": "/users",
+               "description": "Get all users (Admin only)",
+               "authentication": "required",
+               "authorization": "admin",
+               "responses": {
+                  "200": {
+                     "description": "Users retrieved successfully",
+                     "data": "Array of User objects"
+                  },
+                  "403": "Forbidden - Admin access required"
+               }
+            },
+            {
+               "method": "GET",
+               "path": "/users/{id}",
+               "description": "Get user by ID",
+               "authentication": "required",
+               "parameters": [
+                  {
+                     "name": "id",
+                     "in": "path",
+                     "required": true,
+                     "type": "uuid",
+                     "description": "User ID"
+                  }
+               ],
+               "responses": {
+                  "200": "User retrieved successfully",
+                  "404": "User not found"
+               }
+            },
+            {
+               "method": "PUT",
+               "path": "/users/{id}",
+               "description": "Update user",
+               "authentication": "required",
+               "parameters": [
+                  {
+                     "name": "id",
+                     "in": "path",
+                     "required": true,
+                     "type": "uuid"
+                  }
+               ],
+               "requestBody": {
+                  "schema": {
+                     "fullName": {
+                        "type": "string",
+                        "example": "John Doe Updated"
+                     },
+                     "email": {
+                        "type": "string",
+                        "format": "email",
+                        "example": "john.updated@example.com"
+                     },
+                     "avatarUrl": {
+                        "type": "string",
+                        "format": "uri",
+                        "nullable": true
+                     }
+                  }
+               },
+               "responses": {
+                  "200": "User updated successfully",
+                  "404": "User not found"
+               }
+            },
+            {
+               "method": "DELETE",
+               "path": "/users/{id}",
+               "description": "Delete user (Admin only)",
+               "authentication": "required",
+               "authorization": "admin",
+               "parameters": [
+                  {
+                     "name": "id",
+                     "in": "path",
+                     "required": true,
+                     "type": "uuid"
+                  }
+               ],
+               "responses": {
+                  "200": "User deleted successfully",
+                  "403": "Forbidden - Admin access required",
+                  "404": "User not found"
+               }
+            }
+         ]
+      },
+      "projects": {
+         "baseRoute": "/projects",
+         "description": "Project management",
+         "authentication": "required",
+         "endpoints": [
+            {
+               "method": "GET",
+               "path": "/projects",
+               "description": "Get all projects",
+               "responses": {
+                  "200": {
+                     "description": "Projects retrieved successfully",
+                     "data": "Array of Project objects"
+                  }
+               }
+            },
+            {
+               "method": "POST",
+               "path": "/projects",
+               "description": "Create a new project",
+               "requestBody": {
+                  "required": [
+                     "name",
+                     "key",
+                     "category",
+                     "template"
+                  ],
+                  "schema": {
+                     "name": {
+                        "type": "string",
+                        "example": "Website Redesign",
+                        "maxLength": 255
+                     },
+                     "key": {
+                        "type": "string",
+                        "example": "WR",
+                        "maxLength": 10,
+                        "description": "Unique project key"
+                     },
+                     "description": {
+                        "type": "string",
+                        "example": "Complete overhaul of company website",
+                        "nullable": true
+                     },
+                     "category": {
+                        "type": "string",
+                        "example": "web-development",
+                        "maxLength": 50
+                     },
+                     "template": {
+                        "type": "string",
+                        "example": "kanban",
+                        "maxLength": 20
+                     },
+                     "leadId": {
+                        "type": "uuid",
+                        "nullable": true,
+                        "description": "Project lead user ID"
+                     }
+                  }
+               },
+               "responses": {
+                  "201": "Project created successfully",
+                  "400": "Bad request"
+               }
+            },
+            {
+               "method": "GET",
+               "path": "/projects/user/{userId}",
+               "description": "Get projects by user",
+               "parameters": [
+                  {
+                     "name": "userId",
+                     "in": "path",
+                     "required": true,
+                     "type": "uuid"
+                  }
+               ],
+               "responses": {
+                  "200": "User projects retrieved successfully",
+                  "404": "User not found"
+               }
+            },
+            {
+               "method": "GET",
+               "path": "/projects/{id}",
+               "description": "Get project by ID",
+               "parameters": [
+                  {
+                     "name": "id",
+                     "in": "path",
+                     "required": true,
+                     "type": "uuid"
+                  }
+               ],
+               "responses": {
+                  "200": "Project retrieved successfully",
+                  "404": "Project not found"
+               }
+            },
+            {
+               "method": "PUT",
+               "path": "/projects/{id}",
+               "description": "Update project",
+               "parameters": [
+                  {
+                     "name": "id",
+                     "in": "path",
+                     "required": true,
+                     "type": "uuid"
+                  }
+               ],
+               "requestBody": {
+                  "schema": {
+                     "name": {
+                        "type": "string",
+                        "example": "Website Redesign V2"
+                     },
+                     "description": {
+                        "type": "string",
+                        "example": "Updated project description"
+                     },
+                     "category": {
+                        "type": "string"
+                     },
+                     "template": {
+                        "type": "string"
+                     },
+                     "leadId": {
+                        "type": "uuid",
+                        "nullable": true
+                     }
+                  }
+               },
+               "responses": {
+                  "200": "Project updated successfully",
+                  "404": "Project not found"
+               }
+            },
+            {
+               "method": "DELETE",
+               "path": "/projects/{id}",
+               "description": "Delete project",
+               "parameters": [
+                  {
+                     "name": "id",
+                     "in": "path",
+                     "required": true,
+                     "type": "uuid"
+                  }
+               ],
+               "responses": {
+                  "200": "Project deleted successfully",
+                  "404": "Project not found"
+               }
+            },
+            {
+               "method": "GET",
+               "path": "/projects/{id}/members",
+               "description": "Get project members",
+               "parameters": [
+                  {
+                     "name": "id",
+                     "in": "path",
+                     "required": true,
+                     "type": "uuid"
+                  }
+               ],
+               "responses": {
+                  "200": {
+                     "description": "Project members retrieved successfully",
+                     "data": "Array of ProjectMember objects with User details"
+                  }
+               }
+            },
+            {
+               "method": "POST",
+               "path": "/projects/{id}/members",
+               "description": "Add member to project",
+               "parameters": [
+                  {
+                     "name": "id",
+                     "in": "path",
+                     "required": true,
+                     "type": "uuid"
+                  }
+               ],
+               "requestBody": {
+                  "required": [
+                     "userId"
+                  ],
+                  "schema": {
+                     "userId": {
+                        "type": "uuid",
+                        "example": "550e8400-e29b-41d4-a716-446655440000"
+                     },
+                     "role": {
+                        "type": "string",
+                        "example": "member",
+                        "default": "member"
+                     }
+                  }
+               },
+               "responses": {
+                  "201": "Member added successfully",
+                  "400": "User already a member"
+               }
+            },
+            {
+               "method": "DELETE",
+               "path": "/projects/{id}/members/{userId}",
+               "description": "Remove member from project",
+               "parameters": [
+                  {
+                     "name": "id",
+                     "in": "path",
+                     "required": true,
+                     "type": "uuid",
+                     "description": "Project ID"
+                  },
+                  {
+                     "name": "userId",
+                     "in": "path",
+                     "required": true,
+                     "type": "uuid",
+                     "description": "User ID to remove"
+                  }
+               ],
+               "responses": {
+                  "200": "Member removed successfully",
+                  "404": "Member not found"
+               }
+            }
+         ]
+      },
+      "issues": {
+         "baseRoute": "/issues",
+         "description": "Issue management",
+         "authentication": "required",
+         "endpoints": [
+            {
+               "method": "GET",
+               "path": "/issues",
+               "description": "Get all issues with optional filters",
+               "queryParameters": [
+                  {
+                     "name": "projectId",
+                     "type": "uuid",
+                     "description": "Filter by project ID"
+                  },
+                  {
+                     "name": "statusId",
+                     "type": "uuid",
+                     "description": "Filter by status ID"
+                  },
+                  {
+                     "name": "assigneeId",
+                     "type": "uuid",
+                     "description": "Filter by assignee ID"
+                  },
+                  {
+                     "name": "priority",
+                     "type": "string",
+                     "description": "Filter by priority (low, medium, high, urgent)"
+                  },
+                  {
+                     "name": "issueType",
+                     "type": "string",
+                     "description": "Filter by issue type (task, bug, feature, story)"
+                  }
+               ],
+               "responses": {
+                  "200": {
+                     "description": "Issues retrieved successfully",
+                     "data": "Array of Issue objects"
+                  }
+               }
+            },
+            {
+               "method": "POST",
+               "path": "/issues",
+               "description": "Create a new issue",
+               "requestBody": {
+                  "required": [
+                     "title",
+                     "reporterId"
+                  ],
+                  "schema": {
+                     "title": {
+                        "type": "string",
+                        "example": "Fix login bug",
+                        "maxLength": 500
+                     },
+                     "description": {
+                        "type": "string",
+                        "example": "Users cannot login with special characters in password",
+                        "nullable": true
+                     },
+                     "issueType": {
+                        "type": "string",
+                        "example": "bug",
+                        "maxLength": 50,
+                        "default": "task"
+                     },
+                     "priority": {
+                        "type": "string",
+                        "example": "high",
+                        "maxLength": 20,
+                        "default": "medium"
+                     },
+                     "projectId": {
+                        "type": "uuid",
+                        "nullable": true
+                     },
+                     "assigneeId": {
+                        "type": "uuid",
+                        "nullable": true
+                     },
+                     "reporterId": {
+                        "type": "uuid",
+                        "description": "Required - ID of user reporting the issue"
+                     },
+                     "statusId": {
+                        "type": "uuid",
+                        "nullable": true
+                     },
+                     "storyPoints": {
+                        "type": "integer",
+                        "nullable": true
+                     },
+                     "dueDate": {
+                        "type": "date",
+                        "format": "YYYY-MM-DD",
+                        "nullable": true
+                     }
+                  }
+               },
+               "responses": {
+                  "201": "Issue created successfully",
+                  "400": "Bad request"
+               }
+            },
+            {
+               "method": "GET",
+               "path": "/issues/project/{projectId}",
+               "description": "Get issues by project",
+               "parameters": [
+                  {
+                     "name": "projectId",
+                     "in": "path",
+                     "required": true,
+                     "type": "uuid"
+                  }
+               ],
+               "responses": {
+                  "200": "Project issues retrieved successfully",
+                  "404": "Project not found"
+               }
+            },
+            {
+               "method": "GET",
+               "path": "/issues/{id}",
+               "description": "Get issue by ID",
+               "parameters": [
+                  {
+                     "name": "id",
+                     "in": "path",
+                     "required": true,
+                     "type": "uuid"
+                  }
+               ],
+               "responses": {
+                  "200": {
+                     "description": "Issue retrieved successfully",
+                     "data": {
+                        "issue": "Issue object",
+                        "includes": [
+                           "project",
+                           "status",
+                           "assignee",
+                           "reporter",
+                           "comments"
+                        ]
+                     }
+                  },
+                  "404": "Issue not found"
+               }
+            },
+            {
+               "method": "PUT",
+               "path": "/issues/{id}",
+               "description": "Update issue",
+               "parameters": [
+                  {
+                     "name": "id",
+                     "in": "path",
+                     "required": true,
+                     "type": "uuid"
+                  }
+               ],
+               "requestBody": {
+                  "schema": {
+                     "title": {
+                        "type": "string",
+                        "example": "Updated issue title"
+                     },
+                     "description": {
+                        "type": "string",
+                        "example": "Updated description"
+                     },
+                     "priority": {
+                        "type": "string",
+                        "example": "medium"
+                     },
+                     "issueType": {
+                        "type": "string",
+                        "example": "feature"
+                     },
+                     "statusId": {
+                        "type": "uuid"
+                     },
+                     "assigneeId": {
+                        "type": "uuid",
+                        "nullable": true
+                     },
+                     "storyPoints": {
+                        "type": "integer",
+                        "nullable": true
+                     },
+                     "dueDate": {
+                        "type": "date",
+                        "nullable": true
+                     }
+                  }
+               },
+               "responses": {
+                  "200": "Issue updated successfully",
+                  "404": "Issue not found"
+               }
+            },
+            {
+               "method": "DELETE",
+               "path": "/issues/{id}",
+               "description": "Delete issue",
+               "parameters": [
+                  {
+                     "name": "id",
+                     "in": "path",
+                     "required": true,
+                     "type": "uuid"
+                  }
+               ],
+               "responses": {
+                  "200": "Issue deleted successfully",
+                  "404": "Issue not found"
+               }
+            },
+            {
+               "method": "PATCH",
+               "path": "/issues/{id}/status",
+               "description": "Update issue status",
+               "parameters": [
+                  {
+                     "name": "id",
+                     "in": "path",
+                     "required": true,
+                     "type": "uuid"
+                  }
+               ],
+               "requestBody": {
+                  "required": [
+                     "statusId"
+                  ],
+                  "schema": {
+                     "statusId": {
+                        "type": "uuid",
+                        "description": "New status ID"
+                     }
+                  }
+               },
+               "responses": {
+                  "200": "Issue status updated successfully",
+                  "404": "Issue not found"
+               }
+            },
+            {
+               "method": "PATCH",
+               "path": "/issues/{id}/assign",
+               "description": "Assign issue to user",
+               "parameters": [
+                  {
+                     "name": "id",
+                     "in": "path",
+                     "required": true,
+                     "type": "uuid"
+                  }
+               ],
+               "requestBody": {
+                  "schema": {
+                     "assigneeId": {
+                        "type": "uuid",
+                        "nullable": true,
+                        "description": "User ID to assign, or null to unassign"
+                     }
+                  }
+               },
+               "responses": {
+                  "200": "Issue assignment updated successfully",
+                  "404": "Issue not found"
+               }
+            },
+            {
+               "method": "GET",
+               "path": "/issues/{id}/comments",
+               "description": "Get issue comments",
+               "parameters": [
+                  {
+                     "name": "id",
+                     "in": "path",
+                     "required": true,
+                     "type": "uuid"
+                  }
+               ],
+               "responses": {
+                  "200": {
+                     "description": "Issue comments retrieved successfully",
+                     "data": "Array of Comment objects with Author details"
+                  }
+               }
+            },
+            {
+               "method": "POST",
+               "path": "/issues/{id}/comments",
+               "description": "Add comment to issue",
+               "parameters": [
+                  {
+                     "name": "id",
+                     "in": "path",
+                     "required": true,
+                     "type": "uuid"
+                  }
+               ],
+               "requestBody": {
+                  "required": [
+                     "content"
+                  ],
+                  "schema": {
+                     "content": {
+                        "type": "string",
+                        "example": "This issue has been resolved"
+                     }
+                  }
+               },
+               "responses": {
+                  "201": "Comment added successfully",
+                  "404": "Issue not found"
+               }
+            }
+         ]
+      }
+   },
+   "dataModels": {
+      "User": {
+         "id": "uuid",
+         "email": "string (unique, max 255 chars)",
+         "passwordHash": "string (max 255 chars)",
+         "fullName": "string (max 255 chars)",
+         "avatarUrl": "string (nullable, max 500 chars)",
+         "role": "string (nullable, max 50 chars, default: 'user')",
+         "isActive": "boolean (nullable, default: true)",
+         "createdAt": "datetime (nullable)",
+         "updatedAt": "datetime (nullable)"
+      },
+      "Project": {
+         "id": "uuid",
+         "name": "string (max 255 chars)",
+         "key": "string (unique, max 10 chars)",
+         "description": "string (nullable)",
+         "category": "string (max 50 chars)",
+         "template": "string (max 20 chars)",
+         "leadId": "uuid (nullable)",
+         "avatarColor": "string (nullable, max 20 chars, default: 'bg-blue-500')",
+         "isStarred": "boolean (nullable, default: false)",
+         "isArchived": "boolean (nullable, default: false)",
+         "createdAt": "datetime (nullable)",
+         "updatedAt": "datetime (nullable)"
+      },
+      "Issue": {
+         "id": "uuid",
+         "projectId": "uuid (nullable)",
+         "title": "string (max 500 chars)",
+         "description": "string (nullable)",
+         "issueType": "string (nullable, max 50 chars, default: 'task')",
+         "priority": "string (nullable, max 20 chars, default: 'medium')",
+         "statusId": "uuid (nullable)",
+         "assigneeId": "uuid (nullable)",
+         "reporterId": "uuid (required)",
+         "storyPoints": "integer (nullable)",
+         "position": "integer (nullable)",
+         "dueDate": "date (nullable)",
+         "createdAt": "datetime (nullable)",
+         "updatedAt": "datetime (nullable)"
+      },
+      "ProjectMember": {
+         "id": "uuid",
+         "projectId": "uuid (nullable)",
+         "userId": "uuid (nullable)",
+         "role": "string (nullable, max 50 chars, default: 'member')",
+         "joinedAt": "datetime (nullable)"
+      },
+      "IssueStatus": {
+         "id": "uuid",
+         "projectId": "uuid (nullable)",
+         "name": "string (max 100 chars)",
+         "position": "integer (required)",
+         "color": "string (nullable, max 20 chars, default: 'bg-gray-500')",
+         "createdAt": "datetime (nullable)"
+      },
+      "IssueComment": {
+         "id": "uuid",
+         "issueId": "uuid (nullable)",
+         "authorId": "uuid (required)",
+         "content": "string (required)",
+         "createdAt": "datetime (nullable)",
+         "updatedAt": "datetime (nullable)"
+      }
+   },
+   "responseFormat": {
+      "success": {
+         "success": true,
+         "data": "object | array",
+         "message": "string (optional)"
+      },
+      "error": {
+         "success": false,
+         "error": {
+            "message": "string",
+            "code": "string (optional)",
+            "statusCode": "integer"
+         }
+      }
+   },
+   "statusCodes": {
+      "200": "Success",
+      "201": "Created",
+      "400": "Bad Request",
+      "401": "Unauthorized",
+      "403": "Forbidden",
+      "404": "Not Found",
+      "409": "Conflict",
+      "422": "Validation Error",
+      "500": "Internal Server Error"
+   },
+   "frontendIntegration": {
+      "authenticationFlow": {
+         "1": "POST /users/register or /users/login",
+         "2": "Extract token from response.data.token",
+         "3": "Store token in localStorage/sessionStorage",
+         "4": "Include in Authorization header for protected routes",
+         "5": "Handle token expiration (401 responses)",
+         "6": "Redirect to login on auth failure"
+      },
+      "errorHandling": {
+         "networkErrors": "Handle fetch/axios errors",
+         "validationErrors": "Display field-specific error messages",
+         "authErrors": "Redirect to login page",
+         "serverErrors": "Show generic error message"
+      },
+      "bestPractices": [
+         "Use TypeScript interfaces matching API schemas",
+         "Implement loading states for API calls",
+         "Cache responses when appropriate",
+         "Validate data before sending requests",
+         "Use proper HTTP methods (GET, POST, PUT, PATCH, DELETE)",
+         "Handle file uploads if needed",
+         "Implement pagination for large datasets",
+         "Use debouncing for search functionality"
+      ]
+   },
+   "sampleData": {
+      "testAccounts": {
+         "admin": {
+            "email": "admin@kanbanflow.com",
+            "password": "admin123",
+            "role": "admin"
+         },
+         "projectLead": {
+            "email": "lead@kanbanflow.com",
+            "password": "password123",
+            "role": "user"
+         }
+      },
+      "demoProject": {
+         "name": "Demo Project",
+         "key": "DEMO",
+         "description": "A demo project for testing KanbanFlow features",
+         "category": "software-development",
+         "template": "kanban"
+      }
+   }
+}
