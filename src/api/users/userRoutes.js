@@ -8,8 +8,14 @@ const {
   loginUser,
   registerUser,
   getProfile,
+  searchUsers,
 } = require("./userController");
-const { protect, authorize } = require("../../middlewares/auth");
+const { 
+  protect, 
+  requireAdmin, 
+  requireSelfOrAdminAccess,
+  USER_ROLES 
+} = require("../../middlewares");
 
 const router = express.Router();
 
@@ -132,6 +138,67 @@ router.get("/profile", getProfile);
 
 /**
  * @swagger
+ * /users/search:
+ *   get:
+ *     summary: Search users by name or email
+ *     tags: [Users]
+ *     parameters:
+ *       - in: query
+ *         name: query
+ *         required: true
+ *         schema:
+ *           type: string
+ *           minLength: 2
+ *         description: Search term (minimum 2 characters)
+ *         example: "john"
+ *     responses:
+ *       200:
+ *         description: Users found successfully
+ *         content:
+ *           application/json:
+ *             schema:
+ *               allOf:
+ *                 - $ref: '#/components/schemas/ApiResponse'
+ *                 - type: object
+ *                   properties:
+ *                     data:
+ *                       type: object
+ *                       properties:
+ *                         users:
+ *                           type: array
+ *                           items:
+ *                             type: object
+ *                             properties:
+ *                               id:
+ *                                 type: string
+ *                                 format: uuid
+ *                               name:
+ *                                 type: string
+ *                               fullName:
+ *                                 type: string
+ *                               email:
+ *                                 type: string
+ *                                 format: email
+ *                               createdAt:
+ *                                 type: string
+ *                                 format: date-time
+ *       400:
+ *         description: Bad request - Query parameter required or too short
+ *         content:
+ *           application/json:
+ *             schema:
+ *               $ref: '#/components/schemas/ErrorResponse'
+ *       401:
+ *         description: Unauthorized
+ *         content:
+ *           application/json:
+ *             schema:
+ *               $ref: '#/components/schemas/ErrorResponse'
+ */
+router.get("/search", searchUsers);
+
+/**
+ * @swagger
  * /users:
  *   get:
  *     summary: Get all users (Admin only)
@@ -157,7 +224,7 @@ router.get("/profile", getProfile);
  *             schema:
  *               $ref: '#/components/schemas/ErrorResponse'
  */
-router.get("/", authorize("admin"), getAllUsers);
+router.get("/", requireAdmin, getAllUsers);
 
 /**
  * @swagger
@@ -241,7 +308,7 @@ router.get("/:id", getUserById);
  *             schema:
  *               $ref: '#/components/schemas/ErrorResponse'
  */
-router.put("/:id", updateUser);
+router.put("/:id", requireSelfOrAdminAccess, updateUser);
 
 /**
  * @swagger
@@ -282,6 +349,6 @@ router.put("/:id", updateUser);
  *             schema:
  *               $ref: '#/components/schemas/ErrorResponse'
  */
-router.delete("/:id", authorize("admin"), deleteUser);
+router.delete("/:id", requireAdmin, deleteUser);
 
 module.exports = router;

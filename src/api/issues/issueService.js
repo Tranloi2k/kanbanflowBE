@@ -1,5 +1,6 @@
 const prisma = require("../../config/prisma");
 const ApiError = require("../../utils/ApiError");
+const notificationService = require("../notifications/notificationService");
 
 class IssueService {
   async getAllIssues(filters = {}) {
@@ -15,7 +16,7 @@ class IssueService {
     const where = {};
     if (priority) where.priority = priority;
     if (issueType) where.issueType = issueType;
-    if (status) where.statusId = status;
+    if (status) where.status = status;
     if (assignee) where.assigneeId = assignee;
 
     const issues = await prisma.issue.findMany({
@@ -28,7 +29,6 @@ class IssueService {
             key: true,
           },
         },
-        status: true,
         assignee: {
           select: {
             id: true,
@@ -81,7 +81,6 @@ class IssueService {
             leadId: true,
           },
         },
-        status: true,
         assignee: {
           select: {
             id: true,
@@ -151,7 +150,7 @@ class IssueService {
       description,
       issueType = "task",
       priority = "medium",
-      statusId,
+      status = "TODO",
       assigneeId,
       reporterId,
       storyPoints,
@@ -162,20 +161,11 @@ class IssueService {
     // Get project to validate it exists
     const project = await prisma.project.findUnique({
       where: { id: projectId },
-      include: {
-        issueStatuses: {
-          orderBy: { position: "asc" },
-          take: 1,
-        },
-      },
     });
 
     if (!project) {
       throw new ApiError(404, "Project not found");
     }
-
-    // Use first status if no statusId provided
-    const finalStatusId = statusId || project.issueStatuses[0]?.id;
 
     // Get next position
     const lastIssue = await prisma.issue.findFirst({
@@ -192,7 +182,7 @@ class IssueService {
         description,
         issueType,
         priority,
-        statusId: finalStatusId,
+        status,
         assigneeId,
         reporterId,
         storyPoints,
@@ -207,7 +197,6 @@ class IssueService {
             key: true,
           },
         },
-        status: true,
         assignee: {
           select: {
             id: true,
@@ -251,6 +240,26 @@ class IssueService {
       },
     });
 
+    // Create notification if issue is assigned to someone
+    if (assigneeId && assigneeId !== reporterId) {
+      try {
+        const reporter = await prisma.user.findUnique({
+          where: { id: reporterId },
+          select: { fullName: true },
+        });
+
+        await notificationService.createIssueAssignedNotification(
+          assigneeId,
+          title,
+          issue.project.name,
+          reporter.fullName,
+          issue.id
+        );
+      } catch (error) {
+        console.error("Failed to create issue assignment notification:", error);
+      }
+    }
+
     return issue;
   }
 
@@ -266,6 +275,7 @@ class IssueService {
       storyPoints,
       dueDate,
       labelIds,
+      status
     } = updateData;
 
     const updatedIssue = await prisma.issue.update({
@@ -279,6 +289,7 @@ class IssueService {
         ...(dueDate !== undefined && {
           dueDate: dueDate ? new Date(dueDate) : null,
         }),
+        ...(status && { status }),
       },
       include: {
         project: {
@@ -288,7 +299,6 @@ class IssueService {
             key: true,
           },
         },
-        status: true,
         assignee: {
           select: {
             id: true,
@@ -343,7 +353,7 @@ class IssueService {
     const { status, assignee, priority, issueType, search } = filters;
 
     const where = { projectId };
-    if (status) where.statusId = status;
+    if (status) where.status = status;
     if (assignee) where.assigneeId = assignee;
     if (priority) where.priority = priority;
     if (issueType) where.issueType = issueType;
@@ -357,7 +367,6 @@ class IssueService {
     const issues = await prisma.issue.findMany({
       where,
       include: {
-        status: true,
         assignee: {
           select: {
             id: true,
@@ -394,15 +403,14 @@ class IssueService {
     }));
   }
 
-  async updateIssueStatus(id, statusId, userId) {
+  async updateIssueStatus(id, status, userId) {
     const issue = await this.getIssueById(id);
     const oldStatus = issue.status;
 
     const updatedIssue = await prisma.issue.update({
       where: { id },
-      data: { statusId },
+      data: { status },
       include: {
-        status: true,
         assignee: {
           select: {
             id: true,
@@ -422,11 +430,31 @@ class IssueService {
         userId,
         action: "UPDATE_STATUS",
         details: {
-          fromStatus: oldStatus?.name,
-          toStatus: updatedIssue.status?.name,
+          fromStatus: oldStatus,
+          toStatus: status,
         },
       },
     });
+
+    // Create notification for assignee if status changes and issue is assigned
+    if (issue.assigneeId && issue.assigneeId !== userId) {
+      try {
+        const statusChanger = await prisma.user.findUnique({
+          where: { id: userId },
+          select: { fullName: true },
+        });
+
+        await notificationService.createIssueStatusChangeNotification(
+          issue.assigneeId,
+          issue.title,
+          status,
+          statusChanger.fullName,
+          id
+        );
+      } catch (error) {
+        console.error("Failed to create status change notification:", error);
+      }
+    }
 
     return updatedIssue;
   }
@@ -461,6 +489,26 @@ class IssueService {
         },
       },
     });
+
+    // Create notification for assigned user
+    if (assigneeId && assigneeId !== userId) {
+      try {
+        const assigner = await prisma.user.findUnique({
+          where: { id: userId },
+          select: { fullName: true },
+        });
+
+        await notificationService.createIssueAssignedNotification(
+          assigneeId,
+          issue.title,
+          issue.project.name,
+          assigner.fullName,
+          id
+        );
+      } catch (error) {
+        console.error("Failed to create issue assignment notification:", error);
+      }
+    }
 
     return updatedIssue;
   }
@@ -525,6 +573,30 @@ class IssueService {
         },
       },
     });
+
+    // Create notifications for issue assignee and reporter (if different from comment author)
+    try {
+      const notifyUsers = new Set();
+      
+      if (issue.assigneeId && issue.assigneeId !== authorId) {
+        notifyUsers.add(issue.assigneeId);
+      }
+      
+      if (issue.reporterId && issue.reporterId !== authorId) {
+        notifyUsers.add(issue.reporterId);
+      }
+
+      for (const userId of notifyUsers) {
+        await notificationService.createIssueCommentNotification(
+          userId,
+          issue.title,
+          comment.author.fullName,
+          issueId
+        );
+      }
+    } catch (error) {
+      console.error("Failed to create comment notification:", error);
+    }
 
     return comment;
   }

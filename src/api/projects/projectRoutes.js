@@ -9,6 +9,12 @@ const {
   addProjectMember,
   removeProjectMember,
   getUserProjects,
+  inviteUserToProject,
+  getProjectInvitations,
+  getUserInvitations,
+  respondToInvitation,
+  cancelInvitation,
+  updateMemberRole,
 } = require("./projectController");
 const { protect, authorize } = require("../../middlewares/auth");
 
@@ -385,5 +391,174 @@ router.post("/:id/members", addProjectMember);
  *               $ref: '#/components/schemas/ErrorResponse'
  */
 router.delete("/:id/members/:userId", removeProjectMember);
+
+// Member management routes
+
+/**
+ * @swagger
+ * /projects/{id}/search-users:
+ *   get:
+ *     summary: Search users for invitation
+ *     tags: [Projects]
+ *     parameters:
+ *       - in: path
+ *         name: id
+ *         required: true
+ *         schema:
+ *           type: string
+ *           format: uuid
+ *         description: Project ID
+ *       - in: query
+ *         name: query
+ *         required: true
+ *         schema:
+ *           type: string
+ *           minimum: 2
+ *         description: Search query (name or email)
+ *     responses:
+ *       200:
+ *         description: Users retrieved successfully
+ *         content:
+ *           application/json:
+ *             schema:
+ *               allOf:
+ *                 - $ref: '#/components/schemas/ApiResponse'
+ *                 - type: object
+ *                   properties:
+ *                     data:
+ *                       type: array
+ *                       items:
+ *                         $ref: '#/components/schemas/User'
+ */
+
+/**
+ * @swagger
+ * /projects/{id}/invitations:
+ *   post:
+ *     summary: Invite user to project
+ *     tags: [Projects]
+ *     parameters:
+ *       - in: path
+ *         name: id
+ *         required: true
+ *         schema:
+ *           type: string
+ *           format: uuid
+ *         description: Project ID
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             required:
+ *               - email
+ *             properties:
+ *               email:
+ *                 type: string
+ *                 format: email
+ *                 example: "user@example.com"
+ *               role:
+ *                 type: string
+ *                 enum: [member, admin]
+ *                 default: member
+ *                 example: "member"
+ *               message:
+ *                 type: string
+ *                 example: "Join our awesome project!"
+ *     responses:
+ *       201:
+ *         description: Invitation sent successfully
+ *         content:
+ *           application/json:
+ *             schema:
+ *               allOf:
+ *                 - $ref: '#/components/schemas/ApiResponse'
+ *                 - type: object
+ *                   properties:
+ *                     data:
+ *                       $ref: '#/components/schemas/ProjectInvitation'
+ */
+router.post("/:id/invitations", inviteUserToProject);
+
+/**
+ * @swagger
+ * /projects/{id}/invitations:
+ *   get:
+ *     summary: Get project invitations
+ *     tags: [Projects]
+ *     parameters:
+ *       - in: path
+ *         name: id
+ *         required: true
+ *         schema:
+ *           type: string
+ *           format: uuid
+ *         description: Project ID
+ *     responses:
+ *       200:
+ *         description: Project invitations retrieved successfully
+ *         content:
+ *           application/json:
+ *             schema:
+ *               allOf:
+ *                 - $ref: '#/components/schemas/ApiResponse'
+ *                 - type: object
+ *                   properties:
+ *                     data:
+ *                       type: array
+ *                       items:
+ *                         $ref: '#/components/schemas/ProjectInvitation'
+ */
+router.get("/:id/invitations", getProjectInvitations);
+
+/**
+ * @swagger
+ * /projects/{id}/members/{memberId}/role:
+ *   patch:
+ *     summary: Update member role
+ *     tags: [Projects]
+ *     parameters:
+ *       - in: path
+ *         name: id
+ *         required: true
+ *         schema:
+ *           type: string
+ *           format: uuid
+ *         description: Project ID
+ *       - in: path
+ *         name: memberId
+ *         required: true
+ *         schema:
+ *           type: string
+ *           format: uuid
+ *         description: Member ID
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             required:
+ *               - role
+ *             properties:
+ *               role:
+ *                 type: string
+ *                 enum: [member, admin]
+ *                 example: "admin"
+ *     responses:
+ *       200:
+ *         description: Member role updated successfully
+ *         content:
+ *           application/json:
+ *             schema:
+ *               allOf:
+ *                 - $ref: '#/components/schemas/ApiResponse'
+ *                 - type: object
+ *                   properties:
+ *                     data:
+ *                       $ref: '#/components/schemas/ProjectMember'
+ */
+router.patch("/:id/members/:memberId/role", updateMemberRole);
 
 module.exports = router;

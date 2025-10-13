@@ -54,34 +54,6 @@ async function main() {
       },
     });
 
-    // Create default issue statuses for the demo project
-    const statusesToDo = await prisma.issueStatus.create({
-      data: {
-        projectId: demoProject.id,
-        name: "To Do",
-        position: 1,
-        color: "bg-gray-500",
-      },
-    });
-
-    const statusInProgress = await prisma.issueStatus.create({
-      data: {
-        projectId: demoProject.id,
-        name: "In Progress",
-        position: 2,
-        color: "bg-blue-500",
-      },
-    });
-
-    const statusDone = await prisma.issueStatus.create({
-      data: {
-        projectId: demoProject.id,
-        name: "Done",
-        position: 3,
-        color: "bg-green-500",
-      },
-    });
-
     // Add project lead as a member
     await prisma.projectMember.upsert({
       where: {
@@ -98,8 +70,8 @@ async function main() {
       },
     });
 
-    // Create a sample issue
-    const sampleIssue = await prisma.issue.create({
+    // Create sample issues with different statuses
+    await prisma.issue.create({
       data: {
         projectId: demoProject.id,
         title: "Setup project documentation",
@@ -107,9 +79,36 @@ async function main() {
           "Create comprehensive documentation for the project setup and API usage",
         issueType: "task",
         priority: "medium",
-        statusId: statusesToDo.id,
+        status: "TODO",
         reporterId: projectLead.id,
         position: 1,
+      },
+    });
+
+    await prisma.issue.create({
+      data: {
+        projectId: demoProject.id,
+        title: "Implement user authentication",
+        description: "Add JWT authentication system with login/logout functionality",
+        issueType: "feature",
+        priority: "high",
+        status: "INPROGRESS",
+        reporterId: projectLead.id,
+        assigneeId: projectLead.id,
+        position: 2,
+      },
+    });
+
+    await prisma.issue.create({
+      data: {
+        projectId: demoProject.id,
+        title: "Code review for dashboard component",
+        description: "Review the dashboard component implementation",
+        issueType: "task",
+        priority: "medium",
+        status: "REVIEW",
+        reporterId: projectLead.id,
+        position: 3,
       },
     });
 
@@ -117,7 +116,7 @@ async function main() {
     console.log(`📧 Admin: admin@kanbanflow.com / admin123`);
     console.log(`📧 Project Lead: lead@kanbanflow.com / password123`);
     console.log(`📁 Demo Project: ${demoProject.name} (${demoProject.key})`);
-    console.log(`📋 Sample Issue: ${sampleIssue.title}`);
+    console.log(`📋 Sample Issues created with different statuses`);
   } catch (error) {
     console.error("❌ Error seeding database:", error);
     throw error;

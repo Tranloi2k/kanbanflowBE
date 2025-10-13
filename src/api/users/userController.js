@@ -78,6 +78,21 @@ const deleteUser = asyncHandler(async (req, res) => {
   sendResponse(res, 200, null, "User deleted successfully");
 });
 
+// @desc    Search users
+// @route   GET /api/v1/users/search
+// @access  Private
+const searchUsers = asyncHandler(async (req, res) => {
+  const { query } = req.query;
+
+  if (!query) {
+    throw new ApiError(400, "Query parameter is required");
+  }
+
+  const users = await userService.searchUsers(query);
+
+  sendResponse(res, 200, { users }, "Users found successfully");
+});
+
 module.exports = {
   getAllUsers,
   getUserById,
@@ -87,4 +102,5 @@ module.exports = {
   loginUser,
   registerUser,
   getProfile,
+  searchUsers,
 };

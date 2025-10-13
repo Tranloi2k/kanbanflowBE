@@ -8,6 +8,12 @@ const rateLimit = require("express-rate-limit");
 // Import Prisma for database connection
 const prisma = require("./config/prisma");
 
+// Import notification scheduler
+const notificationScheduler = require("./utils/notificationScheduler");
+
+// Import socket manager
+const socketManager = require("./utils/socketManager");
+
 // Import Swagger configuration
 const { swaggerUi, specs } = require("./config/swagger");
 
@@ -19,6 +25,8 @@ const notFound = require("./middlewares/notFound");
 const userRoutes = require("./api/users/userRoutes");
 const projectRoutes = require("./api/projects/projectRoutes");
 const issueRoutes = require("./api/issues/issueRoutes");
+const invitationRoutes = require("./api/invitations/invitationRoutes");
+const notificationRoutes = require("./api/notifications/notificationRoutes");
 
 const app = express();
 const PORT = process.env.PORT || 3000;
@@ -75,6 +83,8 @@ app.get("/health", (req, res) => {
 app.use("/api/v1/users", userRoutes);
 app.use("/api/v1/projects", projectRoutes);
 app.use("/api/v1/issues", issueRoutes);
+app.use("/api/v1/invitations", invitationRoutes);
+app.use("/api/v1/notifications", notificationRoutes);
 
 // 404 handler
 app.use(notFound);
@@ -82,9 +92,15 @@ app.use(notFound);
 // Error handler
 app.use(errorHandler);
 
-app.listen(PORT, () => {
+const server = app.listen(PORT, () => {
   console.log(`🚀 KanbanFlow server is running on port ${PORT}`);
   console.log(`📊 Environment: ${process.env.NODE_ENV || "development"}`);
+  
+  // Initialize Socket.IO
+  socketManager.initialize(server);
+  
+  // Start notification scheduler
+  notificationScheduler.start();
 });
 
 module.exports = app;

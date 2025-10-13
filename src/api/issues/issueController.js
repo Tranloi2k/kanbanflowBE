@@ -64,7 +64,7 @@ const getProjectIssues = asyncHandler(async (req, res) => {
 const updateIssueStatus = asyncHandler(async (req, res) => {
   const issue = await issueService.updateIssueStatus(
     req.params.id,
-    req.body.statusId,
+    req.body.status,
     req.user.id
   );
   sendResponse(res, 200, issue, "Issue status updated successfully");

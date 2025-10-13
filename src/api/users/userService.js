@@ -2,6 +2,7 @@ const bcrypt = require("bcryptjs");
 const jwt = require("jsonwebtoken");
 const prisma = require("../../config/prisma");
 const ApiError = require("../../utils/ApiError");
+const { USER_ROLES } = require("../../constants/roles");
 
 class UserService {
   async createUser(userData) {
@@ -23,7 +24,7 @@ class UserService {
         fullName: name,
         email,
         passwordHash: hashedPassword,
-        role: "user",
+        role: USER_ROLES.USER,
       },
       select: {
         id: true,
@@ -63,7 +64,7 @@ class UserService {
       throw new ApiError(401, "Invalid credentials");
     }
 
-    const token = this.generateToken(user.id);
+    const token = this.generateToken(user.id, user.role);
 
     return {
       user: {
@@ -186,8 +187,48 @@ class UserService {
     return true;
   }
 
-  generateToken(userId) {
-    return jwt.sign({ id: userId }, process.env.JWT_SECRET, {
+  async searchUsers(query) {
+    if (!query || query.length < 2) {
+      throw new ApiError(400, "Search query must be at least 2 characters");
+    }
+
+    const users = await prisma.user.findMany({
+      where: {
+        OR: [
+          {
+            fullName: {
+              contains: query,
+              mode: "insensitive",
+            },
+          },
+          {
+            email: {
+              contains: query,
+              mode: "insensitive",
+            },
+          },
+        ],
+      },
+      select: {
+        id: true,
+        fullName: true,
+        email: true,
+        createdAt: true,
+      },
+      take: 20, // Limit results
+      orderBy: {
+        fullName: "asc",
+      },
+    });
+
+    return users.map((user) => ({
+      ...user,
+      name: user.fullName,
+    }));
+  }
+
+  generateToken(userId, role) {
+    return jwt.sign({ id: userId, role }, process.env.JWT_SECRET, {
       expiresIn: process.env.JWT_EXPIRES_IN,
     });
   }

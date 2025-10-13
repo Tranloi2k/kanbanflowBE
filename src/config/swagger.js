@@ -211,11 +211,9 @@ const options = {
               default: "medium",
               nullable: true,
             },
-            statusId: {
-              type: "string",
-              format: "uuid",
-              description: "Current status ID",
-              nullable: true,
+            status: {
+              $ref: "#/components/schemas/IssueStatus",
+              description: "Current status",
             },
             assigneeId: {
               type: "string",
@@ -333,43 +331,202 @@ const options = {
           },
         },
         IssueStatus: {
+          type: "string",
+          enum: ["TODO", "INPROGRESS", "REVIEW", "DONE"],
+          description: "Issue status",
+        },
+        InvitationStatus: {
+          type: "string",
+          enum: ["PENDING", "ACCEPTED", "REJECTED", "CANCELLED"],
+          description: "Invitation status",
+        },
+        ProjectInvitation: {
           type: "object",
-          required: ["id", "name", "position"],
+          required: ["id", "projectId", "inviterId", "inviteeId", "email", "role", "status"],
           properties: {
             id: {
               type: "string",
               format: "uuid",
-              description: "Unique identifier for the status",
+              description: "Unique identifier for the invitation",
             },
             projectId: {
               type: "string",
               format: "uuid",
-              description: "Project ID this status belongs to",
+              description: "Project ID",
+            },
+            inviterId: {
+              type: "string",
+              format: "uuid",
+              description: "Inviter user ID",
+            },
+            inviteeId: {
+              type: "string",
+              format: "uuid",
+              description: "Invitee user ID",
+            },
+            email: {
+              type: "string",
+              format: "email",
+              description: "Invitee email",
+            },
+            role: {
+              type: "string",
+              enum: ["member", "admin"],
+              description: "Role to be assigned",
+              default: "member",
+            },
+            status: {
+              $ref: "#/components/schemas/InvitationStatus",
+            },
+            message: {
+              type: "string",
+              description: "Optional invitation message",
               nullable: true,
             },
-            name: {
+            invitedAt: {
               type: "string",
-              description: "Status name",
-              maxLength: 100,
+              format: "date-time",
+              description: "Invitation sent timestamp",
             },
-            position: {
-              type: "integer",
-              description: "Position order of the status",
-            },
-            color: {
+            respondedAt: {
               type: "string",
-              description: "Status color class",
-              maxLength: 20,
-              default: "bg-gray-500",
+              format: "date-time",
+              description: "Response timestamp",
+              nullable: true,
+            },
+            expiresAt: {
+              type: "string",
+              format: "date-time",
+              description: "Invitation expiration timestamp",
+            },
+            project: {
+              type: "object",
+              properties: {
+                id: {
+                  type: "string",
+                  format: "uuid",
+                },
+                name: {
+                  type: "string",
+                },
+                key: {
+                  type: "string",
+                },
+                description: {
+                  type: "string",
+                  nullable: true,
+                },
+                avatarColor: {
+                  type: "string",
+                  nullable: true,
+                },
+              },
+            },
+            inviter: {
+              $ref: "#/components/schemas/User",
+            },
+            invitee: {
+              $ref: "#/components/schemas/User",
+            },
+          },
+        },
+        ProjectMember: {
+          type: "object",
+          required: ["id", "role", "joinedAt"],
+          properties: {
+            id: {
+              type: "string",
+              format: "uuid",
+              description: "Unique identifier for the membership",
+            },
+            role: {
+              type: "string",
+              enum: ["member", "admin", "lead"],
+              description: "Member role in the project",
+              default: "member",
+            },
+            joinedAt: {
+              type: "string",
+              format: "date-time",
+              description: "When member joined the project",
+            },
+            user: {
+              $ref: "#/components/schemas/User",
+            },
+          },
+        },
+        Notification: {
+          type: "object",
+          required: ["id", "userId", "type", "title", "isRead", "createdAt"],
+          properties: {
+            id: {
+              type: "string",
+              format: "uuid",
+              description: "Unique identifier for the notification",
+            },
+            userId: {
+              type: "string",
+              format: "uuid",
+              description: "User ID this notification belongs to",
+            },
+            type: {
+              $ref: "#/components/schemas/NotificationType",
+            },
+            title: {
+              type: "string",
+              description: "Notification title",
+              maxLength: 255,
+            },
+            message: {
+              type: "string",
+              description: "Notification message content",
+              nullable: true,
+            },
+            isRead: {
+              type: "boolean",
+              description: "Whether notification has been read",
+              default: false,
+            },
+            relatedId: {
+              type: "string",
+              format: "uuid",
+              description: "ID of related entity (project, issue, etc.)",
+              nullable: true,
+            },
+            relatedType: {
+              type: "string",
+              description: "Type of related entity",
+              maxLength: 50,
+              nullable: true,
+            },
+            actionUrl: {
+              type: "string",
+              description: "URL for notification action",
+              maxLength: 500,
+              nullable: true,
+            },
+            metadata: {
+              type: "object",
+              description: "Additional notification data",
               nullable: true,
             },
             createdAt: {
               type: "string",
               format: "date-time",
-              description: "Status creation timestamp",
+              description: "Notification creation timestamp",
+            },
+            readAt: {
+              type: "string",
+              format: "date-time",
+              description: "When notification was read",
               nullable: true,
             },
           },
+        },
+        NotificationType: {
+          type: "string",
+          enum: ["PROJECT_INVITATION", "ISSUE_ASSIGNED", "ISSUE_COMMENT", "ISSUE_STATUS_CHANGE", "PROJECT_MEMBER_ADDED", "PROJECT_ROLE_UPDATED", "GENERAL"],
+          description: "Type of notification",
         },
         UserRegistration: {
           type: "object",
@@ -555,6 +712,8 @@ const options = {
     "./src/api/users/*.js",
     "./src/api/projects/*.js",
     "./src/api/issues/*.js",
+    "./src/api/invitations/*.js",
+    "./src/api/notifications/*.js",
     "./src/app.js",
   ],
 };
